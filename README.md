@@ -1,10 +1,22 @@
+<p align="center">
+  <img src="logo.png" width="120" height="120" alt="BugZero AI Logo">
+</p>
+
 # 🤖 BugZero AI — Autonomous DevOps Agent
 
-> Automatically detect, fix, and prevent common issues in your code repositories.
+> **Zero Bugs. Zero Friction.** | Autonomous intelligence that monitors, fixes, and secures your code 24/7.
 
-BugZero AI is a Node.js webhook server that acts as an autonomous agent:
-it listens for GitHub events, scans your code for secrets and quality issues,
-applies AI-powered fixes, and opens a pull request — all without human intervention.
+BugZero AI is a high-performance Node.js agent that acts as your private DevOps engineer. It listens for GitHub webhooks, scans your code for security leaks and quality issues, generates AI-powered repairs using GPT-4o-mini, and opens pull requests — all before you even realize there was a problem.
+
+---
+
+## ⚡ Key Highlights (Hackathon Features)
+
+- **Autonomous Intelligence**: Uses GPT-4o-mini to not just find bugs, but intelligently repair them.
+- **Security First**: Real-time secret detection (API keys, tokens) with automatic redaction and rotation warnings.
+- **Universal Fixer**: Combines regex patterns, ESLint, and npm audit into a single, cohesive fixing pipeline.
+- **Manual Control**: A sleek dashboard that allows manual triggers on any public repository.
+- **Security-as-Code**: Automatically updates `.env.example` and commits safe code revisions.
 
 ---
 
