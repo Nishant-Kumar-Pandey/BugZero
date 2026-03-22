@@ -462,7 +462,7 @@
 <div class="hero wrap">
   <div class="hero-eyebrow">Autonomous DevOps Intelligence</div>
   <h1 class="hero-title">Zero Bugs.<br>Zero Friction.</h1>
-  <p class="hero-sub">BugZero AI monitors your repositories 24/7, automatically detects issues, applies fixes, and opens pull requests — no human required.</p>
+  <p class="hero-sub">BugZero AI monitors your repositories 24/7, automatically detects issues, applies fixes, and opens merge requests — no human required.</p>
 </div>
 
 <!-- Stats -->
@@ -483,9 +483,9 @@
     <div class="stat-sub">ESLint issues resolved</div>
   </div>
   <div class="stat-card">
-    <div class="stat-label">PRs Opened</div>
-    <div class="stat-value" id="stat-prs" style="color:var(--purple)">0</div>
-    <div class="stat-sub">Auto-generated pull requests</div>
+    <div class="stat-label">MRs Opened</div>
+    <div class="stat-value" id="stat-mrs" style="color:var(--purple)">0</div>
+    <div class="stat-sub">Auto-generated merge requests</div>
   </div>
 </div>
 
@@ -524,7 +524,7 @@
           <div class="detection-patterns">
             <span class="pattern-tag">sk-...</span>
             <span class="pattern-tag">AKIA...</span>
-            <span class="pattern-tag">ghp_...</span>
+            <span class="pattern-tag">glpat-...</span>
             <span class="pattern-tag">sk_live_...</span>
             <span class="pattern-tag">Bearer ...</span>
           </div>
@@ -567,7 +567,7 @@
     <!-- PR preview -->
     <div class="panel">
       <div class="panel-header">
-        <div class="panel-title">📬 Sample Pull Request</div>
+        <div class="panel-title">📬 Sample Merge Request</div>
         <span class="badge badge-green">Auto-Generated</span>
       </div>
       <div class="pr-preview">
@@ -581,11 +581,11 @@
           </div>
           <div class="pr-body">
             <strong>🤖 BugZero AI — Automated Fix Report</strong><br><br>
-            This PR was automatically generated after detecting issues in <code>main</code>.<br><br>
+            This MR was automatically generated after detecting issues in <code>main</code>.<br><br>
             <strong>🔑 Secrets Removed (3)</strong><br>
             • <strong>OpenAI API Key</strong> in <code>app.js</code> line 6 → replaced with <code>process.env.OPENAI_API_KEY</code><br>
             • <strong>AWS Access Key</strong> in <code>config.js</code> line 12 → replaced with <code>process.env.AWS_ACCESS_KEY_ID</code><br>
-            • <strong>GitHub Token</strong> in <code>utils/fetch.js</code> line 3 → replaced with <code>process.env.GITHUB_TOKEN</code><br><br>
+            • <strong>GitLab Token</strong> in <code>utils/fetch.js</code> line 3 → replaced with <code>process.env.GITLAB_TOKEN</code><br><br>
             ⚠️ <strong>ACTION REQUIRED</strong>: Rotate/revoke the exposed keys immediately!<br><br>
             <strong>🧹 ESLint Issues Fixed (5)</strong><br>
             • <code>app.js:10</code> [no-var] Unexpected var, use let or const<br>
@@ -736,7 +736,7 @@
 <script>
 // ── State ──────────────────────────────────────────────
 let lastEventCount = 0;
-let stats = { runs: 0, secrets: 0, lint: 0, prs: 0 };
+let stats = { runs: 0, secrets: 0, lint: 0, mrs: 0 };
 
 // ── Event log ─────────────────────────────────────────
 async function refreshLog(btn) {
@@ -773,7 +773,7 @@ async function refreshLog(btn) {
       const runEvents = events.filter(e => e.message.includes('Agent triggered'));
       document.getElementById('stat-runs').textContent = runEvents.length;
       document.getElementById('stat-secrets').textContent = secretEvents.length;
-      document.getElementById('stat-prs').textContent = prEvents.length;
+      document.getElementById('stat-mrs').textContent = prEvents.length;
     }
   } catch {}
   if (btn) setTimeout(() => btn.classList.remove('spin'), 400);
@@ -785,7 +785,7 @@ async function checkStatus() {
     const res = await fetch('/api/status');
     const data = await res.json();
     const cfg = data.configured || {};
-    setConfig('cfg-github',  cfg.github);
+    setConfig('cfg-gitlab',  cfg.gitlab);
     setConfig('cfg-webhook', cfg.webhook);
     setConfig('cfg-openai',  cfg.openai);
   } catch {}
