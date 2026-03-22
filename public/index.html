@@ -1,0 +1,897 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>BugZero AI — DevOps Agent</title>
+<link rel="icon" type="image/png" href="/favicon.png">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=IBM+Plex+Mono:wght@300;400;500;600&family=Space+Grotesk:wght@300;400;500;600;700&display=swap" rel="stylesheet">
+<style>
+  :root {
+    --bg:        #080c10;
+    --surface:   #0d1117;
+    --surface2:  #161b22;
+    --surface3:  #21262d;
+    --border:    #30363d;
+    --green:     #3fb950;
+    --green-dim: #1a4a22;
+    --cyan:      #58e6d9;
+    --yellow:    #e3b341;
+    --red:       #f85149;
+    --red-dim:   #4a1919;
+    --purple:    #bc8cff;
+    --blue:      #388bfd;
+    --text:      #e6edf3;
+    --text-dim:  #8b949e;
+    --text-muted:#484f58;
+    --mono:      'IBM Plex Mono', monospace;
+    --sans:      'Space Grotesk', sans-serif;
+    --glow-green: 0 0 20px rgba(63,185,80,0.3);
+    --glow-red:   0 0 20px rgba(248,81,73,0.3);
+  }
+
+  *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+
+  body {
+    font-family: var(--sans);
+    background: var(--bg);
+    color: var(--text);
+    min-height: 100vh;
+    overflow-x: hidden;
+  }
+
+  /* Animated grid background */
+  body::before {
+    content: '';
+    position: fixed; inset: 0;
+    background-image:
+      linear-gradient(rgba(63,185,80,0.03) 1px, transparent 1px),
+      linear-gradient(90deg, rgba(63,185,80,0.03) 1px, transparent 1px);
+    background-size: 40px 40px;
+    pointer-events: none;
+    z-index: 0;
+  }
+
+  .wrap { position: relative; z-index: 1; max-width: 1400px; margin: 0 auto; padding: 0 24px; }
+
+  /* ── Header ─────────────────────────────────────── */
+  header {
+    border-bottom: 1px solid var(--border);
+    background: rgba(8,12,16,0.9);
+    backdrop-filter: blur(20px);
+    position: sticky; top: 0; z-index: 100;
+  }
+
+  .header-inner {
+    display: flex; align-items: center; justify-content: space-between;
+    padding: 16px 24px; max-width: 1400px; margin: 0 auto;
+  }
+
+  .logo {
+    display: flex; align-items: center; gap: 12px;
+    font-family: var(--mono); font-size: 18px; font-weight: 600; letter-spacing: -0.5px;
+  }
+
+  .logo-icon {
+    width: 36px; height: 36px; border-radius: 8px;
+    background: url('/favicon.png') center/cover no-repeat;
+    box-shadow: var(--glow-green);
+    animation: pulse-logo 3s ease-in-out infinite;
+  }
+
+  @keyframes pulse-logo {
+    0%, 100% { box-shadow: 0 0 15px rgba(63,185,80,0.3); }
+    50%       { box-shadow: 0 0 30px rgba(63,185,80,0.6); }
+  }
+
+  .logo-text { color: var(--text); }
+  .logo-text span { color: var(--green); }
+
+  .header-badges { display: flex; gap: 8px; align-items: center; }
+
+  .badge {
+    font-family: var(--mono); font-size: 11px; padding: 4px 10px;
+    border-radius: 20px; border: 1px solid; font-weight: 500;
+  }
+  .badge-green { color: var(--green); border-color: var(--green); background: rgba(63,185,80,0.08); }
+  .badge-dim   { color: var(--text-dim); border-color: var(--border); }
+
+  .status-dot {
+    width: 8px; height: 8px; border-radius: 50%; background: var(--green);
+    animation: blink 2s ease-in-out infinite; display: inline-block; margin-right: 6px;
+  }
+
+  @keyframes blink { 0%, 100% { opacity: 1; } 50% { opacity: 0.3; } }
+
+  /* ── Hero ─────────────────────────────────────────── */
+  .hero {
+    padding: 60px 24px 40px;
+    text-align: center;
+    max-width: 1400px; margin: 0 auto;
+  }
+
+  .hero-eyebrow {
+    font-family: var(--mono); font-size: 12px; letter-spacing: 3px;
+    color: var(--green); text-transform: uppercase; margin-bottom: 16px;
+  }
+
+  .hero-title {
+    font-size: clamp(36px, 5vw, 64px);
+    font-weight: 700; line-height: 1.1;
+    letter-spacing: -2px;
+    background: linear-gradient(135deg, var(--text) 30%, var(--green) 100%);
+    -webkit-background-clip: text; background-clip: text; -webkit-text-fill-color: transparent;
+    margin-bottom: 16px;
+  }
+
+  .hero-sub {
+    color: var(--text-dim); font-size: 16px; max-width: 500px; margin: 0 auto 40px;
+    line-height: 1.6;
+  }
+
+  /* ── Stats row ────────────────────────────────────── */
+  .stats-grid {
+    display: grid; grid-template-columns: repeat(4, 1fr); gap: 16px;
+    max-width: 1400px; margin: 0 auto 40px; padding: 0 24px;
+  }
+
+  @media (max-width: 768px) { .stats-grid { grid-template-columns: repeat(2, 1fr); } }
+
+  .stat-card {
+    background: var(--surface);
+    border: 1px solid var(--border);
+    border-radius: 12px; padding: 20px 24px;
+    position: relative; overflow: hidden;
+    transition: border-color 0.2s, transform 0.2s;
+  }
+
+  .stat-card:hover { border-color: var(--green); transform: translateY(-2px); }
+
+  .stat-card::before {
+    content: ''; position: absolute; top: 0; left: 0; right: 0; height: 2px;
+    background: linear-gradient(90deg, transparent, var(--green), transparent);
+    opacity: 0; transition: opacity 0.3s;
+  }
+  .stat-card:hover::before { opacity: 1; }
+
+  .stat-label {
+    font-family: var(--mono); font-size: 11px; color: var(--text-dim);
+    text-transform: uppercase; letter-spacing: 1px; margin-bottom: 8px;
+  }
+
+  .stat-value {
+    font-family: var(--mono); font-size: 36px; font-weight: 600;
+    line-height: 1; color: var(--green);
+  }
+
+  .stat-sub { font-size: 12px; color: var(--text-muted); margin-top: 6px; }
+
+  /* ── Main layout ──────────────────────────────────── */
+  .main-grid {
+    display: grid; grid-template-columns: 1fr 380px; gap: 24px;
+    max-width: 1400px; margin: 0 auto; padding: 0 24px 60px;
+  }
+
+  @media (max-width: 1100px) { .main-grid { grid-template-columns: 1fr; } }
+
+  /* ── Panel ────────────────────────────────────────── */
+  .panel {
+    background: var(--surface);
+    border: 1px solid var(--border);
+    border-radius: 12px; overflow: hidden;
+  }
+
+  .panel-header {
+    display: flex; align-items: center; justify-content: space-between;
+    padding: 16px 20px;
+    border-bottom: 1px solid var(--border);
+    background: var(--surface2);
+  }
+
+  .panel-title {
+    font-family: var(--mono); font-size: 13px; font-weight: 600;
+    display: flex; align-items: center; gap: 8px;
+  }
+
+  /* ── Event log ────────────────────────────────────── */
+  .event-log { padding: 0; }
+
+  .event-item {
+    display: flex; align-items: flex-start; gap: 12px;
+    padding: 12px 20px; border-bottom: 1px solid rgba(48,54,61,0.5);
+    font-family: var(--mono); font-size: 12px;
+    animation: slide-in 0.3s ease;
+    transition: background 0.15s;
+  }
+
+  .event-item:hover { background: var(--surface2); }
+
+  @keyframes slide-in {
+    from { opacity: 0; transform: translateX(-10px); }
+    to   { opacity: 1; transform: translateX(0); }
+  }
+
+  .event-time { color: var(--text-muted); white-space: nowrap; min-width: 80px; }
+
+  .event-level {
+    min-width: 60px; padding: 2px 8px; border-radius: 4px;
+    font-size: 10px; font-weight: 600; text-transform: uppercase;
+    text-align: center;
+  }
+
+  .level-info    { background: rgba(56,139,253,0.15); color: var(--blue); }
+  .level-warn    { background: rgba(227,179,65,0.15);  color: var(--yellow); }
+  .level-error   { background: rgba(248,81,73,0.15);   color: var(--red); }
+  .level-success { background: rgba(63,185,80,0.15);   color: var(--green); }
+
+  .event-msg { color: var(--text); flex: 1; line-height: 1.5; }
+
+  .log-empty {
+    padding: 60px 20px; text-align: center;
+    color: var(--text-muted); font-family: var(--mono); font-size: 13px;
+  }
+
+  /* ── Architecture diagram ─────────────────────────── */
+  .arch-flow {
+    padding: 24px 20px;
+    display: flex; flex-direction: column; gap: 8px;
+  }
+
+  .arch-step {
+    display: flex; align-items: center; gap: 12px;
+    padding: 12px 16px;
+    border: 1px solid var(--border);
+    border-radius: 8px;
+    background: var(--surface2);
+    font-size: 13px;
+    transition: all 0.2s;
+    position: relative;
+  }
+
+  .arch-step.active {
+    border-color: var(--green);
+    background: var(--green-dim);
+    box-shadow: var(--glow-green);
+  }
+
+  .arch-step.running {
+    border-color: var(--yellow);
+    background: rgba(227,179,65,0.08);
+  }
+
+  .arch-step-icon { font-size: 18px; width: 24px; text-align: center; }
+  .arch-step-text { flex: 1; }
+  .arch-step-name { font-weight: 600; color: var(--text); font-size: 13px; }
+  .arch-step-desc { font-size: 11px; color: var(--text-dim); margin-top: 1px; }
+
+  .arch-arrow {
+    text-align: center; color: var(--border); font-size: 16px;
+    margin: -2px 0;
+  }
+
+  .arch-connector { display: flex; justify-content: center; }
+  .arch-connector-line {
+    width: 2px; height: 16px;
+    background: linear-gradient(to bottom, var(--border), transparent);
+  }
+
+  /* ── Trigger panel ────────────────────────────────── */
+  .trigger-form { padding: 20px; display: flex; flex-direction: column; gap: 14px; }
+
+  .form-row { display: flex; gap: 10px; }
+
+  .input {
+    flex: 1; background: var(--surface2); border: 1px solid var(--border);
+    color: var(--text); padding: 10px 14px; border-radius: 8px;
+    font-family: var(--mono); font-size: 13px;
+    transition: border-color 0.2s;
+    outline: none;
+  }
+
+  .input:focus { border-color: var(--green); }
+  .input::placeholder { color: var(--text-muted); }
+
+  .btn {
+    padding: 10px 20px; border-radius: 8px; border: none; cursor: pointer;
+    font-family: var(--mono); font-size: 13px; font-weight: 600;
+    transition: all 0.2s; white-space: nowrap;
+  }
+
+  .btn-primary {
+    background: var(--green); color: #000;
+    box-shadow: 0 0 20px rgba(63,185,80,0.3);
+  }
+  .btn-primary:hover { background: #56d364; box-shadow: 0 0 30px rgba(63,185,80,0.5); transform: translateY(-1px); }
+  .btn-primary:active { transform: translateY(0); }
+
+  .btn-outline { background: transparent; color: var(--green); border: 1px solid var(--green); }
+  .btn-outline:hover { background: rgba(63,185,80,0.1); }
+
+  .btn:disabled { opacity: 0.5; cursor: not-allowed; transform: none !important; }
+
+  .trigger-result {
+    background: var(--surface2); border: 1px solid var(--border);
+    border-radius: 8px; padding: 14px;
+    font-family: var(--mono); font-size: 12px; line-height: 1.7;
+    display: none; max-height: 200px; overflow-y: auto;
+  }
+
+  /* ── Config status ────────────────────────────────── */
+  .config-list { padding: 0 20px 20px; }
+
+  .config-item {
+    display: flex; align-items: center; justify-content: space-between;
+    padding: 10px 0; border-bottom: 1px solid rgba(48,54,61,0.4);
+    font-size: 13px;
+  }
+
+  .config-item:last-child { border-bottom: none; }
+
+  .config-name { color: var(--text); display: flex; align-items: center; gap: 8px; }
+  .config-name-icon { font-size: 16px; }
+
+  .config-status {
+    font-family: var(--mono); font-size: 11px; padding: 3px 10px;
+    border-radius: 20px; font-weight: 600;
+  }
+  .config-ok   { background: rgba(63,185,80,0.15);  color: var(--green); }
+  .config-miss { background: rgba(248,81,73,0.15);  color: var(--red); }
+
+  /* ── Detections panel ─────────────────────────────── */
+  .detection-grid { padding: 20px; display: grid; grid-template-columns: 1fr 1fr; gap: 12px; }
+
+  @media (max-width: 600px) { .detection-grid { grid-template-columns: 1fr; } }
+
+  .detection-card {
+    border: 1px solid var(--border); border-radius: 8px; padding: 14px;
+    background: var(--surface2);
+    transition: all 0.2s;
+  }
+
+  .detection-card:hover { border-color: var(--text-dim); }
+
+  .detection-icon { font-size: 24px; margin-bottom: 8px; }
+  .detection-name { font-size: 13px; font-weight: 600; color: var(--text); margin-bottom: 4px; }
+  .detection-desc { font-size: 11px; color: var(--text-dim); line-height: 1.5; }
+
+  .detection-patterns {
+    margin-top: 10px; padding-top: 10px; border-top: 1px solid var(--border);
+    display: flex; flex-wrap: wrap; gap: 4px;
+  }
+
+  .pattern-tag {
+    font-family: var(--mono); font-size: 10px; padding: 2px 8px;
+    background: var(--surface3); border: 1px solid var(--border);
+    border-radius: 4px; color: var(--cyan);
+  }
+
+  /* ── Webhook guide ────────────────────────────────── */
+  .webhook-guide { padding: 20px; }
+
+  .code-block {
+    background: var(--bg); border: 1px solid var(--border);
+    border-radius: 8px; padding: 14px 16px;
+    font-family: var(--mono); font-size: 12px; color: var(--cyan);
+    overflow-x: auto; line-height: 1.7; margin: 10px 0;
+  }
+
+  .code-comment { color: var(--text-muted); }
+  .code-key { color: var(--purple); }
+  .code-val { color: var(--yellow); }
+  .code-str { color: var(--green); }
+
+  .step-num {
+    display: inline-flex; align-items: center; justify-content: center;
+    width: 20px; height: 20px; border-radius: 50%;
+    background: var(--green-dim); border: 1px solid var(--green);
+    font-family: var(--mono); font-size: 11px; color: var(--green);
+    margin-right: 8px; flex-shrink: 0;
+  }
+
+  .guide-step {
+    display: flex; align-items: flex-start; gap: 0;
+    margin-bottom: 16px; font-size: 13px; color: var(--text-dim);
+  }
+
+  /* ── PR preview ───────────────────────────────────── */
+  .pr-preview { padding: 20px; }
+
+  .pr-card {
+    border: 1px solid var(--border); border-radius: 10px; overflow: hidden;
+  }
+
+  .pr-card-header {
+    background: var(--surface2); padding: 14px 16px;
+    display: flex; align-items: center; gap: 10px;
+    border-bottom: 1px solid var(--border);
+  }
+
+  .pr-number { font-family: var(--mono); font-size: 12px; color: var(--text-muted); }
+  .pr-title { font-size: 14px; font-weight: 600; flex: 1; }
+
+  .pr-label {
+    font-size: 10px; padding: 2px 8px; border-radius: 20px; font-weight: 600;
+  }
+  .pr-label-purple { background: rgba(188,140,255,0.15); color: var(--purple); border: 1px solid rgba(188,140,255,0.3); }
+  .pr-label-green  { background: rgba(63,185,80,0.15);   color: var(--green);  border: 1px solid rgba(63,185,80,0.3); }
+  .pr-label-red    { background: rgba(248,81,73,0.15);   color: var(--red);    border: 1px solid rgba(248,81,73,0.3); }
+
+  .pr-body { padding: 16px; font-size: 12px; color: var(--text-dim); line-height: 1.8; }
+  .pr-body strong { color: var(--text); }
+  .pr-body code {
+    background: var(--surface3); padding: 1px 6px; border-radius: 4px;
+    font-family: var(--mono); color: var(--cyan); font-size: 11px;
+  }
+
+  /* ── Refresh btn ──────────────────────────────────── */
+  .btn-icon {
+    background: var(--surface3); border: 1px solid var(--border);
+    color: var(--text-dim); padding: 6px 10px; border-radius: 6px;
+    cursor: pointer; font-size: 12px; transition: all 0.2s;
+  }
+  .btn-icon:hover { color: var(--text); border-color: var(--text-dim); }
+
+  .spin { animation: spin 1s linear infinite; }
+  @keyframes spin { to { transform: rotate(360deg); } }
+
+  /* scrollbar */
+  ::-webkit-scrollbar { width: 6px; height: 6px; }
+  ::-webkit-scrollbar-track { background: var(--surface); }
+  ::-webkit-scrollbar-thumb { background: var(--surface3); border-radius: 3px; }
+  ::-webkit-scrollbar-thumb:hover { background: var(--border); }
+</style>
+</head>
+<body>
+
+<!-- Header -->
+<header>
+  <div class="header-inner">
+    <div class="logo">
+      <div class="logo-icon"></div>
+      <div class="logo-text">Bug<span>Zero</span> AI</div>
+    </div>
+    <div class="header-badges">
+      <span class="badge badge-green"><span class="status-dot"></span>Agent Active</span>
+      <span class="badge badge-dim" id="version-badge">v1.0.0</span>
+    </div>
+  </div>
+</header>
+
+<!-- Hero -->
+<div class="hero wrap">
+  <div class="hero-eyebrow">Autonomous DevOps Intelligence</div>
+  <h1 class="hero-title">Zero Bugs.<br>Zero Friction.</h1>
+  <p class="hero-sub">BugZero AI monitors your repositories 24/7, automatically detects issues, applies fixes, and opens pull requests — no human required.</p>
+</div>
+
+<!-- Stats -->
+<div class="stats-grid">
+  <div class="stat-card">
+    <div class="stat-label">Runs Total</div>
+    <div class="stat-value" id="stat-runs">0</div>
+    <div class="stat-sub">Agent executions</div>
+  </div>
+  <div class="stat-card">
+    <div class="stat-label">Secrets Found</div>
+    <div class="stat-value" id="stat-secrets" style="color:var(--red)">0</div>
+    <div class="stat-sub">Keys removed & replaced</div>
+  </div>
+  <div class="stat-card">
+    <div class="stat-label">Lint Fixed</div>
+    <div class="stat-value" id="stat-lint" style="color:var(--yellow)">0</div>
+    <div class="stat-sub">ESLint issues resolved</div>
+  </div>
+  <div class="stat-card">
+    <div class="stat-label">PRs Opened</div>
+    <div class="stat-value" id="stat-prs" style="color:var(--purple)">0</div>
+    <div class="stat-sub">Auto-generated pull requests</div>
+  </div>
+</div>
+
+<!-- Main grid -->
+<div class="main-grid">
+
+  <!-- Left column -->
+  <div style="display:flex;flex-direction:column;gap:24px;">
+
+    <!-- Live event log -->
+    <div class="panel">
+      <div class="panel-header">
+        <div class="panel-title">
+          <span style="color:var(--green)">●</span> Live Agent Log
+        </div>
+        <button class="btn-icon" onclick="refreshLog(this)" title="Refresh">↻</button>
+      </div>
+      <div class="event-log" id="event-log">
+        <div class="log-empty">
+          Waiting for webhook events...<br>
+          <span style="font-size:10px;margin-top:8px;display:block">Push code to your connected repository to trigger the agent</span>
+        </div>
+      </div>
+    </div>
+
+    <!-- Detection capabilities -->
+    <div class="panel">
+      <div class="panel-header">
+        <div class="panel-title">🔍 Detection Engine</div>
+      </div>
+      <div class="detection-grid">
+        <div class="detection-card">
+          <div class="detection-icon">🔑</div>
+          <div class="detection-name">Secret Detection</div>
+          <div class="detection-desc">Scans all JS/TS files for exposed credentials using regex pattern matching.</div>
+          <div class="detection-patterns">
+            <span class="pattern-tag">sk-...</span>
+            <span class="pattern-tag">AKIA...</span>
+            <span class="pattern-tag">ghp_...</span>
+            <span class="pattern-tag">sk_live_...</span>
+            <span class="pattern-tag">Bearer ...</span>
+          </div>
+        </div>
+        <div class="detection-card">
+          <div class="detection-icon">🧹</div>
+          <div class="detection-name">ESLint Analysis</div>
+          <div class="detection-desc">Runs ESLint against the codebase and uses AI to generate intelligent fixes.</div>
+          <div class="detection-patterns">
+            <span class="pattern-tag">no-var</span>
+            <span class="pattern-tag">no-console</span>
+            <span class="pattern-tag">unused-vars</span>
+            <span class="pattern-tag">semi</span>
+          </div>
+        </div>
+        <div class="detection-card">
+          <div class="detection-icon">🛡️</div>
+          <div class="detection-name">npm Audit</div>
+          <div class="detection-desc">Identifies vulnerable dependencies and surfaces packages with available fixes.</div>
+          <div class="detection-patterns">
+            <span class="pattern-tag">critical</span>
+            <span class="pattern-tag">high</span>
+            <span class="pattern-tag">moderate</span>
+            <span class="pattern-tag">low</span>
+          </div>
+        </div>
+        <div class="detection-card">
+          <div class="detection-icon">🤖</div>
+          <div class="detection-name">AI Fix Engine</div>
+          <div class="detection-desc">GPT-4o-mini generates context-aware code fixes and replaces secrets with env vars.</div>
+          <div class="detection-patterns">
+            <span class="pattern-tag">gpt-4o-mini</span>
+            <span class="pattern-tag">process.env</span>
+            <span class="pattern-tag">.env.example</span>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <!-- PR preview -->
+    <div class="panel">
+      <div class="panel-header">
+        <div class="panel-title">📬 Sample Pull Request</div>
+        <span class="badge badge-green">Auto-Generated</span>
+      </div>
+      <div class="pr-preview">
+        <div class="pr-card">
+          <div class="pr-card-header">
+            <span class="pr-number">#142</span>
+            <span class="pr-title">🤖 Auto-Fix: 🔑 Removed Exposed Secrets &amp; 🧹 Fixed Lint Issues</span>
+            <span class="pr-label pr-label-purple">bugzero-ai</span>
+            <span class="pr-label pr-label-green">automated-fix</span>
+            <span class="pr-label pr-label-red">security</span>
+          </div>
+          <div class="pr-body">
+            <strong>🤖 BugZero AI — Automated Fix Report</strong><br><br>
+            This PR was automatically generated after detecting issues in <code>main</code>.<br><br>
+            <strong>🔑 Secrets Removed (3)</strong><br>
+            • <strong>OpenAI API Key</strong> in <code>app.js</code> line 6 → replaced with <code>process.env.OPENAI_API_KEY</code><br>
+            • <strong>AWS Access Key</strong> in <code>config.js</code> line 12 → replaced with <code>process.env.AWS_ACCESS_KEY_ID</code><br>
+            • <strong>GitHub Token</strong> in <code>utils/fetch.js</code> line 3 → replaced with <code>process.env.GITHUB_TOKEN</code><br><br>
+            ⚠️ <strong>ACTION REQUIRED</strong>: Rotate/revoke the exposed keys immediately!<br><br>
+            <strong>🧹 ESLint Issues Fixed (5)</strong><br>
+            • <code>app.js:10</code> [no-var] Unexpected var, use let or const<br>
+            • <code>app.js:16</code> [no-console] Unexpected console statement<br>
+            • ...and 3 more<br><br>
+            <strong>🛡️ Security Vulnerabilities (2)</strong><br>
+            • <strong>lodash</strong> (high): Prototype Pollution — fix available<br>
+            • <strong>axios</strong> (medium): SSRF vulnerability<br>
+          </div>
+        </div>
+      </div>
+    </div>
+
+  </div>
+
+  <!-- Right sidebar -->
+  <div style="display:flex;flex-direction:column;gap:24px;">
+
+    <!-- Config status -->
+    <div class="panel">
+      <div class="panel-header">
+        <div class="panel-title">⚙️ Configuration</div>
+        <button class="btn-icon" onclick="checkStatus()">↻</button>
+      </div>
+      <div class="config-list" id="config-list">
+        <div class="config-item">
+          <span class="config-name"><span class="config-name-icon">🐙</span> GitHub Token</span>
+          <span class="config-status config-miss" id="cfg-github">Not Set</span>
+        </div>
+        <div class="config-item">
+          <span class="config-name"><span class="config-name-icon">🔐</span> Webhook Secret</span>
+          <span class="config-status config-miss" id="cfg-webhook">Not Set</span>
+        </div>
+        <div class="config-item">
+          <span class="config-name"><span class="config-name-icon">🤖</span> OpenAI API Key</span>
+          <span class="config-status config-miss" id="cfg-openai">Not Set</span>
+        </div>
+      </div>
+    </div>
+
+    <!-- Manual trigger -->
+    <div class="panel">
+      <div class="panel-header">
+        <div class="panel-title">▶ Manual Trigger</div>
+      </div>
+      <div class="trigger-form">
+        <div class="form-row">
+          <input class="input" id="t-owner" placeholder="owner" style="flex:1">
+          <input class="input" id="t-repo"  placeholder="repo"  style="flex:1.5">
+        </div>
+        <input class="input" id="t-ref" placeholder="branch (default: main)">
+        <button class="btn btn-primary" id="trigger-btn" onclick="triggerAgent()">
+          🚀 Run Agent Now
+        </button>
+        <div class="trigger-result" id="trigger-result"></div>
+      </div>
+    </div>
+
+    <!-- Architecture flow -->
+    <div class="panel">
+      <div class="panel-header">
+        <div class="panel-title">🏗️ Agent Pipeline</div>
+      </div>
+      <div class="arch-flow" id="arch-flow">
+        <div class="arch-step" id="step-0">
+          <div class="arch-step-icon">📡</div>
+          <div class="arch-step-text">
+            <div class="arch-step-name">GitHub Webhook</div>
+            <div class="arch-step-desc">push / pull_request event received</div>
+          </div>
+        </div>
+        <div class="arch-connector"><div class="arch-connector-line"></div></div>
+        <div class="arch-step" id="step-1">
+          <div class="arch-step-icon">📥</div>
+          <div class="arch-step-text">
+            <div class="arch-step-name">Clone Repository</div>
+            <div class="arch-step-desc">Shallow clone of the target branch</div>
+          </div>
+        </div>
+        <div class="arch-connector"><div class="arch-connector-line"></div></div>
+        <div class="arch-step" id="step-2">
+          <div class="arch-step-icon">🔍</div>
+          <div class="arch-step-text">
+            <div class="arch-step-name">Detection Engine</div>
+            <div class="arch-step-desc">Secrets + ESLint + npm audit</div>
+          </div>
+        </div>
+        <div class="arch-connector"><div class="arch-connector-line"></div></div>
+        <div class="arch-step" id="step-3">
+          <div class="arch-step-icon">🤖</div>
+          <div class="arch-step-text">
+            <div class="arch-step-name">AI Fix Engine</div>
+            <div class="arch-step-desc">GPT-4o-mini generates code repairs</div>
+          </div>
+        </div>
+        <div class="arch-connector"><div class="arch-connector-line"></div></div>
+        <div class="arch-step" id="step-4">
+          <div class="arch-step-icon">📤</div>
+          <div class="arch-step-text">
+            <div class="arch-step-name">Commit &amp; Push</div>
+            <div class="arch-step-desc">New branch with all fixes applied</div>
+          </div>
+        </div>
+        <div class="arch-connector"><div class="arch-connector-line"></div></div>
+        <div class="arch-step" id="step-5">
+          <div class="arch-step-icon">📬</div>
+          <div class="arch-step-text">
+            <div class="arch-step-name">Pull Request</div>
+            <div class="arch-step-desc">Auto-PR with full fix report</div>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <!-- Webhook setup guide -->
+    <div class="panel">
+      <div class="panel-header">
+        <div class="panel-title">📖 Webhook Setup</div>
+      </div>
+      <div class="webhook-guide">
+        <div class="guide-step">
+          <span class="step-num">1</span>
+          <span>Go to your repo → <strong>Settings → Webhooks → Add webhook</strong></span>
+        </div>
+        <div class="code-block">
+<span class="code-key">Payload URL:</span>  <span class="code-str">https://your-server/webhook</span>
+<span class="code-key">Content type:</span> <span class="code-val">application/json</span>
+<span class="code-key">Events:</span>       <span class="code-str">push, pull_request</span>
+        </div>
+        <div class="guide-step">
+          <span class="step-num">2</span>
+          <span>Copy your <strong>Webhook Secret</strong> into the <code>.env</code> file</span>
+        </div>
+        <div class="guide-step">
+          <span class="step-num">3</span>
+          <span>Start the server: <code style="color:var(--green)">npm start</code></span>
+        </div>
+        <div class="guide-step">
+          <span class="step-num">4</span>
+          <span>Push code with a hardcoded secret to trigger the demo!</span>
+        </div>
+      </div>
+    </div>
+
+  </div>
+</div>
+
+<script>
+// ── State ──────────────────────────────────────────────
+let lastEventCount = 0;
+let stats = { runs: 0, secrets: 0, lint: 0, prs: 0 };
+
+// ── Event log ─────────────────────────────────────────
+async function refreshLog(btn) {
+  if (btn) btn.classList.add('spin');
+  try {
+    const res = await fetch('/api/events');
+    const events = await res.json();
+
+    const container = document.getElementById('event-log');
+
+    if (events.length === 0) {
+      container.innerHTML = `<div class="log-empty">
+        Waiting for webhook events...<br>
+        <span style="font-size:10px;margin-top:8px;display:block">Push code to your connected repository to trigger the agent</span>
+      </div>`;
+      return;
+    }
+
+    if (events.length !== lastEventCount) {
+      lastEventCount = events.length;
+      container.innerHTML = events.map(e => {
+        const time = new Date(e.ts).toLocaleTimeString();
+        const level = e.level || 'info';
+        return `<div class="event-item">
+          <span class="event-time">${time}</span>
+          <span class="event-level level-${level}">${level}</span>
+          <span class="event-msg">${escHtml(e.message)}</span>
+        </div>`;
+      }).join('');
+
+      // Update stats from events
+      const secretEvents = events.filter(e => e.message.includes('Secret found'));
+      const prEvents = events.filter(e => e.message.includes('PR #'));
+      const runEvents = events.filter(e => e.message.includes('Agent triggered'));
+      document.getElementById('stat-runs').textContent = runEvents.length;
+      document.getElementById('stat-secrets').textContent = secretEvents.length;
+      document.getElementById('stat-prs').textContent = prEvents.length;
+    }
+  } catch {}
+  if (btn) setTimeout(() => btn.classList.remove('spin'), 400);
+}
+
+// ── Config status ─────────────────────────────────────
+async function checkStatus() {
+  try {
+    const res = await fetch('/api/status');
+    const data = await res.json();
+    const cfg = data.configured || {};
+    setConfig('cfg-github',  cfg.github);
+    setConfig('cfg-webhook', cfg.webhook);
+    setConfig('cfg-openai',  cfg.openai);
+  } catch {}
+}
+
+function setConfig(id, ok) {
+  const el = document.getElementById(id);
+  if (!el) return;
+  el.textContent = ok ? '✓ Configured' : 'Not Set';
+  el.className = 'config-status ' + (ok ? 'config-ok' : 'config-miss');
+}
+
+// ── Manual trigger ────────────────────────────────────
+async function triggerAgent() {
+  const owner = document.getElementById('t-owner').value.trim();
+  const repo  = document.getElementById('t-repo').value.trim();
+  const ref   = document.getElementById('t-ref').value.trim() || 'main';
+
+  if (!owner || !repo) {
+    showResult('⚠️ Please enter owner and repo name.', 'var(--yellow)');
+    return;
+  }
+
+  const btn = document.getElementById('trigger-btn');
+  btn.disabled = true;
+  btn.textContent = '⏳ Running agent...';
+  showResult('🔄 Triggering agent pipeline...\n\nThis may take 30–90 seconds depending on repo size.', 'var(--cyan)');
+
+  // Animate pipeline
+  animatePipeline();
+
+  try {
+    const res = await fetch('/api/trigger', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ owner, repo, ref }),
+    });
+    const data = await res.json();
+
+    if (data.error) {
+      showResult(`❌ Error: ${data.error}`, 'var(--red)');
+    } else if (data.status === 'clean') {
+      showResult('✅ Repository is clean!\nNo secrets, lint issues, or vulnerabilities found.', 'var(--green)');
+    } else {
+      const s = data.summary || {};
+      showResult(
+        `✅ Agent completed!\n\n` +
+        `🔑 Secrets removed: ${s.secrets || 0}\n` +
+        `🧹 Lint issues fixed: ${s.lintIssues || 0}\n` +
+        `🛡️  Vulnerabilities: ${s.vulns || 0}\n\n` +
+        `📬 PR #${data.pr?.number}: ${data.pr?.title}\n` +
+        `🔗 ${data.pr?.url}`,
+        'var(--green)'
+      );
+    }
+  } catch (e) {
+    showResult(`❌ Request failed: ${e.message}\n\nIs the server running?`, 'var(--red)');
+  }
+
+  btn.disabled = false;
+  btn.textContent = '🚀 Run Agent Now';
+  refreshLog(null);
+}
+
+function showResult(text, color) {
+  const el = document.getElementById('trigger-result');
+  el.style.display = 'block';
+  el.style.color = color || 'var(--text)';
+  el.textContent = text;
+}
+
+// ── Pipeline animation ────────────────────────────────
+function animatePipeline() {
+  for (let i = 0; i <= 5; i++) {
+    const el = document.getElementById('step-' + i);
+    if (el) el.classList.remove('active', 'running');
+  }
+  let step = 0;
+  const delays = [0, 1500, 3000, 5000, 8000, 10000];
+  delays.forEach((delay, i) => {
+    setTimeout(() => {
+      const el = document.getElementById('step-' + i);
+      if (!el) return;
+      if (i > 0) {
+        const prev = document.getElementById('step-' + (i-1));
+        if (prev) { prev.classList.remove('running'); prev.classList.add('active'); }
+      }
+      el.classList.add('running');
+    }, delay);
+  });
+  setTimeout(() => {
+    const last = document.getElementById('step-5');
+    if (last) { last.classList.remove('running'); last.classList.add('active'); }
+  }, 12000);
+}
+
+// ── Helpers ───────────────────────────────────────────
+function escHtml(s) {
+  return s.replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;');
+}
+
+// ── Init ──────────────────────────────────────────────
+checkStatus();
+refreshLog(null);
+setInterval(() => refreshLog(null), 4000);
+setInterval(checkStatus, 30000);
+</script>
+</body>
+</html>
