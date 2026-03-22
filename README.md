@@ -182,4 +182,4 @@ This runs the full detection pipeline against a sample insecure file and prints 
 
 ## License
 
-MIT © BugZero AI
+This project is licensed under the [MIT License](LICENSE).
