@@ -1,93 +1,173 @@
-# Nishant-Kumar-Pandey-project
+# 🤖 BugZero AI — Autonomous DevOps Agent
 
+> Automatically detect, fix, and prevent common issues in your code repositories.
 
+BugZero AI is a Node.js webhook server that acts as an autonomous agent:
+it listens for GitHub events, scans your code for secrets and quality issues,
+applies AI-powered fixes, and opens a pull request — all without human intervention.
 
-## Getting started
+---
 
-To make it easy for you to get started with GitLab, here's a list of recommended next steps.
-
-Already a pro? Just edit this README.md and make it your own. Want to make it easy? [Use the template at the bottom](#editing-this-readme)!
-
-## Add your files
-
-* [Create](https://docs.gitlab.com/user/project/repository/web_editor/#create-a-file) or [upload](https://docs.gitlab.com/user/project/repository/web_editor/#upload-a-file) files
-* [Add files using the command line](https://docs.gitlab.com/topics/git/add_files/#add-files-to-a-git-repository) or push an existing Git repository with the following command:
+## Architecture
 
 ```
-cd existing_repo
-git remote add origin https://gitlab.com/nishant-kumar-pandey-group/Nishant-Kumar-Pandey-project.git
-git branch -M main
-git push -uf origin main
+GitHub Push/PR
+      │
+      ▼
+┌─────────────────┐
+│  Webhook Server │  ← Express + HMAC signature verification
+└────────┬────────┘
+         │
+         ▼
+┌─────────────────┐
+│  Clone Repo     │  ← git clone --depth 1
+└────────┬────────┘
+         │
+         ▼
+┌─────────────────────────────────────┐
+│         Detection Engine            │
+│  🔑 Secret Patterns  (regex)        │
+│  🧹 ESLint           (npx eslint)   │
+│  🛡️  npm audit        (npm audit)    │
+└────────┬────────────────────────────┘
+         │
+         ▼
+┌─────────────────┐
+│  AI Fix Engine  │  ← GPT-4o-mini generates code repairs
+└────────┬────────┘
+         │
+         ▼
+┌─────────────────┐
+│  Commit & Push  │  ← New branch: bugzero/autofix-{timestamp}
+└────────┬────────┘
+         │
+         ▼
+┌─────────────────┐
+│  Pull Request   │  ← Auto-PR with full report + labels
+└─────────────────┘
 ```
 
-## Integrate with your tools
+---
 
-* [Set up project integrations](https://gitlab.com/nishant-kumar-pandey-group/Nishant-Kumar-Pandey-project/-/settings/integrations)
+## Quick Start
 
-## Collaborate with your team
+### 1. Install dependencies
 
-* [Invite team members and collaborators](https://docs.gitlab.com/user/project/members/)
-* [Create a new merge request](https://docs.gitlab.com/user/project/merge_requests/creating_merge_requests/)
-* [Automatically close issues from merge requests](https://docs.gitlab.com/user/project/issues/managing_issues/#closing-issues-automatically)
-* [Enable merge request approvals](https://docs.gitlab.com/user/project/merge_requests/approvals/)
-* [Set auto-merge](https://docs.gitlab.com/user/project/merge_requests/auto_merge/)
+```bash
+cd bugzero
+npm install
+```
 
-## Test and Deploy
+### 2. Configure environment
 
-Use the built-in continuous integration in GitLab.
+```bash
+cp .env.example .env
+# Edit .env with your tokens
+```
 
-* [Get started with GitLab CI/CD](https://docs.gitlab.com/ci/quick_start/)
-* [Analyze your code for known vulnerabilities with Static Application Security Testing (SAST)](https://docs.gitlab.com/user/application_security/sast/)
-* [Deploy to Kubernetes, Amazon EC2, or Amazon ECS using Auto Deploy](https://docs.gitlab.com/topics/autodevops/requirements/)
-* [Use pull-based deployments for improved Kubernetes management](https://docs.gitlab.com/user/clusters/agent/)
-* [Set up protected environments](https://docs.gitlab.com/ci/environments/protected_environments/)
+Required values:
 
-***
+| Variable               | How to get it                                                     |
+|------------------------|-------------------------------------------------------------------|
+| `GITHUB_TOKEN`         | https://github.com/settings/tokens (scopes: `repo`, `workflow`)  |
+| `GITHUB_WEBHOOK_SECRET`| `openssl rand -hex 32`                                            |
+| `OPENAI_API_KEY`       | https://platform.openai.com/api-keys                             |
 
-# Editing this README
+### 3. Start the server
 
-When you're ready to make this README your own, just edit this file and use the handy template below (or feel free to structure it however you want - this is just a starting point!). Thanks to [makeareadme.com](https://www.makeareadme.com/) for this template.
+```bash
+npm start
+# → 🤖 BugZero AI running on http://localhost:3000
+```
 
-## Suggestions for a good README
+### 4. Expose to GitHub (for local dev)
 
-Every project is different, so consider which of these sections apply to yours. The sections used in the template are suggestions for most open source projects. Also keep in mind that while a README can be too long and detailed, too long is better than too short. If you think your README is too long, consider utilizing another form of documentation rather than cutting out information.
+```bash
+# Using ngrok:
+ngrok http 3000
+# Copy the HTTPS URL
+```
 
-## Name
-Choose a self-explaining name for your project.
+### 5. Add GitHub Webhook
 
-## Description
-Let people know what your project can do specifically. Provide context and add a link to any reference visitors might be unfamiliar with. A list of Features or a Background subsection can also be added here. If there are alternatives to your project, this is a good place to list differentiating factors.
+Go to your repo → **Settings → Webhooks → Add webhook**:
 
-## Badges
-On some READMEs, you may see small images that convey metadata, such as whether or not all the tests are passing for the project. You can use Shields to add some to your README. Many services also have instructions for adding a badge.
+- **Payload URL**: `https://your-ngrok-url/webhook`
+- **Content type**: `application/json`
+- **Secret**: your `GITHUB_WEBHOOK_SECRET`
+- **Events**: ✅ Pushes, ✅ Pull requests
 
-## Visuals
-Depending on what you are making, it can be a good idea to include screenshots or even a video (you'll frequently see GIFs rather than actual videos). Tools like ttygif can help, but check out Asciinema for a more sophisticated method.
+---
 
-## Installation
-Within a particular ecosystem, there may be a common way of installing things, such as using Yarn, NuGet, or Homebrew. However, consider the possibility that whoever is reading your README is a novice and would like more guidance. Listing specific steps helps remove ambiguity and gets people to using your project as quickly as possible. If it only runs in a specific context like a particular programming language version or operating system or has dependencies that have to be installed manually, also add a Requirements subsection.
+## Demo Scenario
 
-## Usage
-Use examples liberally, and show the expected output if you can. It's helpful to have inline the smallest example of usage that you can demonstrate, while providing links to more sophisticated examples if they are too long to reasonably include in the README.
+1. Create a file `app.js` in your repo with this content:
 
-## Support
-Tell people where they can go to for help. It can be any combination of an issue tracker, a chat room, an email address, etc.
+```js
+// Intentionally insecure code for demo
+const OPENAI_KEY = 'sk-proj-abcdefghijklmnopqrstuvwxyz1234567890'
+const AWS_KEY    = 'AKIAIOSFODNN7EXAMPLE'
 
-## Roadmap
-If you have ideas for releases in the future, it is a good idea to list them in the README.
+var unusedVar = 'oops'
+console.log("starting server")
+```
 
-## Contributing
-State if you are open to contributions and what your requirements are for accepting them.
+2. Commit and push to your repo
+3. BugZero AI triggers automatically
+4. Within ~60 seconds, a PR appears with:
+   - Secrets replaced by `process.env.*`
+   - `.env.example` updated
+   - Lint issues fixed by AI
+   - Full explanation in PR body
 
-For people who want to make changes to your project, it's helpful to have some documentation on how to get started. Perhaps there is a script that they should run or some environment variables that they need to set. Make these steps explicit. These instructions could also be useful to your future self.
+---
 
-You can also document commands to lint the code or run tests. These steps help to ensure high code quality and reduce the likelihood that the changes inadvertently break something. Having instructions for running tests is especially helpful if it requires external setup, such as starting a Selenium server for testing in a browser.
+## Run the Demo Locally (no GitHub needed)
 
-## Authors and acknowledgment
-Show your appreciation to those who have contributed to the project.
+```bash
+node test/demo.js
+```
+
+This runs the full detection pipeline against a sample insecure file and prints the results.
+
+---
+
+## API Endpoints
+
+| Method | Path            | Description                         |
+|--------|-----------------|-------------------------------------|
+| POST   | `/webhook`      | GitHub webhook receiver             |
+| GET    | `/api/events`   | Last 50 agent log events (JSON)     |
+| POST   | `/api/trigger`  | Manually trigger agent on any repo  |
+| GET    | `/api/status`   | Config health check                 |
+| GET    | `/`             | Dashboard UI                        |
+
+---
+
+## Secret Patterns Detected
+
+| Pattern        | Example match         | Replaced with                      |
+|----------------|-----------------------|------------------------------------|
+| OpenAI key     | `sk-proj-abc...`      | `process.env.OPENAI_API_KEY`       |
+| AWS access key | `AKIAIOSFODNN7...`    | `process.env.AWS_ACCESS_KEY_ID`    |
+| GitHub PAT     | `ghp_ABC...`          | `process.env.GITHUB_TOKEN`         |
+| Stripe live    | `sk_live_ABC...`      | `process.env.STRIPE_SECRET_KEY`    |
+| Bearer tokens  | `Bearer eyJhb...`     | `process.env.BEARER_TOKEN`         |
+| Generic api_key| `api_key = "abc123"`  | `process.env.API_KEY`              |
+
+---
+
+## Production Considerations
+
+- Replace the in-memory event log with Redis or PostgreSQL
+- Add rate limiting to the webhook endpoint
+- Use GitHub Apps instead of PATs for better security
+- Run in Docker with resource limits (clone + ESLint can be memory-intensive)
+- Store fix history in a database for audit trails
+- Add Slack/Discord notifications for each auto-fix PR
+
+---
 
 ## License
-For open source projects, say how it is licensed.
 
-## Project status
-If you have run out of energy or time for your project, put a note at the top of the README saying that development has slowed down or stopped completely. Someone may choose to fork your project or volunteer to step in as a maintainer or owner, allowing your project to keep going. You can also make an explicit request for maintainers.
+MIT © BugZero AI
