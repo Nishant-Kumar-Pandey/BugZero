@@ -4,6 +4,7 @@ const os = require('os');
 const express = require('express');
 const crypto = require('crypto');
 const { Gitlab } = require('@gitbeaker/rest');
+const { Octokit } = require('@octokit/rest');
 const { execSync } = require('child_process');
 
 // ─── Load Environment Variables (.env) ─────────────────────────────────────
@@ -44,6 +45,8 @@ app.use((req, res, next) => {
 const CONFIG = {
   GITLAB_TOKEN: process.env.GITLAB_TOKEN || '',
   GITLAB_WEBHOOK_SECRET: process.env.GITLAB_WEBHOOK_SECRET || '',
+  GITHUB_TOKEN: process.env.GITHUB_TOKEN || '',
+  GITHUB_WEBHOOK_SECRET: process.env.GITHUB_WEBHOOK_SECRET || '',
   OPENAI_API_KEY: process.env.OPENAI_API_KEY || '',
   PORT: process.env.PORT || 3000,
 };
@@ -176,15 +179,35 @@ function runNpmAudit(dir) {
   } catch { return []; }
 }
 
-// ─── GitLab helpers ────────────────────────────────────────────────────────
+// ─── Git Helpers ───────────────────────────────────────────────────────────
+function getProvider(urlOrName) {
+  if (urlOrName.includes('github.com')) return 'github';
+  if (urlOrName.includes('gitlab.com')) return 'gitlab';
+  // Default to gitlab (original focus of project)
+  return 'gitlab';
+}
+
 function makeGitlab() {
   return new Gitlab({ token: CONFIG.GITLAB_TOKEN });
 }
 
-async function cloneRepo(owner, repo, ref) {
+function makeGithub() {
+  return new Octokit({ auth: CONFIG.GITHUB_TOKEN });
+}
+
+async function cloneRepo(owner, repo, ref, provider = 'github') {
   const tmpDir = fs.mkdtempSync(path.join(os.tmpdir(), 'bugzero-'));
-  // GitLab uses oauth2:TOKEN for authentication over HTTPS
-  const url = `https://oauth2:${CONFIG.GITLAB_TOKEN}@gitlab.com/${owner}/${repo}.git`;
+  let url;
+
+  if (provider === 'github') {
+    // GitHub uses TOKEN@github.com for HTTPS auth
+    url = `https://${CONFIG.GITHUB_TOKEN}@github.com/${owner}/${repo}.git`;
+  } else {
+    // GitLab uses oauth2:TOKEN for authentication over HTTPS
+    url = `https://oauth2:${CONFIG.GITLAB_TOKEN}@gitlab.com/${owner}/${repo}.git`;
+  }
+
+  log({ level: 'info', message: `📥 Cloning: ${url.replace(CONFIG.GITHUB_TOKEN || '!!!', '***').replace(CONFIG.GITLAB_TOKEN || '!!!', '***')}`, runId: 'sys' });
   execSync(`git clone --depth 1 --branch ${ref} ${url} "${tmpDir}"`, { timeout: 60000 });
   return tmpDir;
 }
@@ -206,17 +229,16 @@ async function getAllJSFiles(dir) {
 }
 
 // ─── Core agent pipeline ───────────────────────────────────────────────────
-async function runAgent({ owner, repo, ref, sha, event, prNumber }) {
+async function runAgent({ owner, repo, ref, sha, event, prNumber, provider = 'gitlab' }) {
   const runId = `run-${Date.now()}`;
-  log({ level: 'info', message: `🚀 Agent triggered: ${owner}/${repo}@${ref} (${event})`, runId });
+  log({ level: 'info', message: `🚀 Agent triggered: [${provider.toUpperCase()}] ${owner}/${repo}@${ref} (${event})`, runId });
 
-  const api = makeGitlab();
   let tmpDir = null;
 
   try {
     // 1. Clone repo
     log({ level: 'info', message: `📥 Cloning ${owner}/${repo}...`, runId });
-    tmpDir = await cloneRepo(owner, repo, ref);
+    tmpDir = await cloneRepo(owner, repo, ref, provider);
 
     // 2. Scan all JS/TS files for secrets
     log({ level: 'info', message: `🔍 Scanning for secrets...`, runId });
@@ -343,27 +365,51 @@ ${secretSummary}${lintSummary}${vulnSummary}
       vulns.length > 0 && '🛡️ Security Audit',
     ].filter(Boolean).join(' & ');
 
-    // 10. Create Merge Request
-    // Note: GitLab expects project ID or URL-encoded path
+    // 10. Create Merge Request / Pull Request
+    let mr;
     const projectPath = `${owner}/${repo}`;
-    const mr = await api.MergeRequests.create(projectPath, branchName, ref, `🤖 Auto-Fix: ${prTitle}`, {
-      description: prBody,
-      remove_source_branch: true,
-    });
 
-    log({ level: 'success', message: `✅ MR !${mr.iid} created: ${mr.web_url}`, runId });
-
-    // Add labels
-    try {
-      await api.MergeRequests.edit(projectPath, mr.iid, {
-        labels: 'bugzero-ai,automated-fix,security',
+    if (provider === 'github') {
+      const octokit = makeGithub();
+      const prRes = await octokit.pulls.create({
+        owner,
+        repo,
+        title: `🤖 Auto-Fix: ${prTitle}`,
+        head: branchName,
+        base: ref,
+        body: prBody,
       });
-    } catch { /* labels may not exist */ }
+      mr = { iid: prRes.data.number, web_url: prRes.data.html_url, title: prRes.data.title };
+
+      // Add labels
+      await octokit.issues.addLabels({
+        owner,
+        repo,
+        issue_number: prRes.data.number,
+        labels: ['bugzero-ai', 'automated-fix', 'security'],
+      });
+    } else {
+      const api = makeGitlab();
+      const glMr = await api.MergeRequests.create(projectPath, branchName, ref, `🤖 Auto-Fix: ${prTitle}`, {
+        description: prBody,
+        remove_source_branch: true,
+      });
+      mr = { iid: glMr.iid, web_url: glMr.web_url, title: glMr.title };
+
+      // Add labels
+      try {
+        await api.MergeRequests.edit(projectPath, mr.iid, {
+          labels: 'bugzero-ai,automated-fix,security',
+        });
+      } catch { /* labels may not exist */ }
+    }
+
+    log({ level: 'success', message: `✅ ${provider === 'github' ? 'PR' : 'MR'} !${mr.iid} created: ${mr.web_url}`, runId });
 
     return {
       status: 'fixed',
       runId,
-      mr: { iid: mr.iid, url: mr.web_url, title: mr.title },
+      mr,
       summary: { secrets: allSecrets.length, lintIssues: lintIssues.length, vulns: vulns.length },
     };
 
@@ -439,24 +485,45 @@ app.post('/api/trigger', async (req, res) => {
   owner = owner.trim();
   repo  = repo.trim();
 
+  let provider = 'gitlab';
+
   // If repo looks like a full URL, extract owner and repo
-  if (repo.includes('gitlab.com/')) {
+  if (repo.includes('github.com/')) {
+    provider = 'github';
+    const parts = repo.split('github.com/')[1].split('/');
+    if (parts.length >= 2) {
+      owner = parts[0];
+      repo = parts[1].replace(/\.git$/, '');
+    }
+  } else if (repo.includes('gitlab.com/')) {
+    provider = 'gitlab';
     const parts = repo.split('gitlab.com/')[1].split('/');
     if (parts.length >= 2) {
       owner = parts[0];
       repo = parts[1].replace(/\.git$/, '');
     }
+  } else if (owner.includes('github.com/')) {
+    provider = 'github';
+    const parts = owner.split('github.com/')[1].split('/');
+    if (parts.length >= 2) {
+      owner = parts[0];
+      repo = parts[1].replace(/\.git$/, '');
+    }
   } else if (owner.includes('gitlab.com/')) {
+    provider = 'gitlab';
     const parts = owner.split('gitlab.com/')[1].split('/');
     if (parts.length >= 2) {
       owner = parts[0];
       repo = parts[1].replace(/\.git$/, '');
     }
+  } else {
+    // If simple strings, check if we should guess provider
+    provider = getProvider(owner + '/' + repo);
   }
 
-  log({ level: 'info', message: `🔧 Manual trigger: ${owner}/${repo}@${ref}` });
+  log({ level: 'info', message: `🔧 Manual trigger: [${provider.toUpperCase()}] ${owner}/${repo}@${ref}` });
   try {
-    const result = await runAgent({ owner, repo, ref, sha: 'manual', event: 'manual' });
+    const result = await runAgent({ owner, repo, ref, sha: 'manual', event: 'manual', provider });
     res.json(result);
   } catch (e) {
     res.status(500).json({ error: e.message });

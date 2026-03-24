@@ -1,12 +1,12 @@
 <p align="center">
-  <img src="logo.png" width="120" height="120" alt="BugZero AI Logo">
+  <img src="thumbnail.png" width="800" alt="BugZero AI Thumbnail">
 </p>
 
 # 🤖 BugZero AI — Autonomous DevOps Agent
 
-> **Zero Bugs. Zero Friction.** | Autonomous intelligence that monitors, fixes, and secures your code 24/7.
+> **Zero Bugs. Zero Leaks. Zero Effort.** | Autonomous intelligence that monitors, fixes, and secures your code 24/7.
 
-BugZero AI is a high-performance Node.js agent that acts as your private DevOps engineer. It listens for GitHub webhooks, scans your code for security leaks and quality issues, generates AI-powered repairs using GPT-4o-mini, and opens pull requests — all before you even realize there was a problem.
+BugZero AI is a high-performance Node.js agent that acts as your private DevOps engineer. It listens for GitHub/GitLab webhooks, scans your code for security leaks and quality issues, generates AI-powered repairs using GPT-4o-mini, and opens pull requests — all before you even realize there was a problem.
 
 ---
 
@@ -183,3 +183,34 @@ This runs the full detection pipeline against a sample insecure file and prints 
 ## License
 
 This project is licensed under the [MIT License](LICENSE).
+
+---
+
+# 🛠️ About BugZero AI
+
+## ✨ The Inspiration
+In the fast-paced world of modern DevOps, the window between a developer pushing code and a security vulnerability being discovered is often measured in **hours or days**. During this window, sensitive API keys can be compromised, and low-quality code can infiltrate production.
+
+We were inspired by the idea of **"Zero-Mean-Time-to-Fix"**. Why wait for a human to review a simple linting error or a leaked secret when an AI can do it in seconds? BugZero was born to be the "private investigator" of your repository—always watching, always fixing, and never sleeping.
+
+## 🛠️ How We Built It
+BugZero is built on a high-performance **Node.js** architecture designed for low-latency webhook processing. The engine follows a 4-step linear pipeline:
+
+1.  **Webhook Internalization**: An Express.js server verifies HMAC signatures to ensure payload integrity.
+2.  **Detection Engine**: We implemented a hybrid system using high-speed regex for secret detection and `npm audit` for dependency graphs.
+3.  **AI Repair Logic**: We utilized **GPT-4o-mini** via the OpenAI API to analyze code context and generate repairs.
+4.  **Git Automation**: Automated branch creation and Merge/Pull Request submission via the Octokit and GitBeaker libraries.
+
+## 🧠 What We Learned
+Throughout the hackathon, we gained deep insights into:
+- **Git Internals**: Managing shallow clones and branch head-switching via automated scripts.
+- **AI Prompt Engineering**: Learning how to constrain LLM output to produce *only* code without hallucinating unnecessary explanations.
+- **Security-as-Code**: Understanding the lifecycle of a leaked secret and how to replace it with `process.env` equivalents without breaking the build.
+
+## 🚧 Challenges We Faced
+- **API Rate Limiting**: Handling GitHub and OpenAI rate limits when processing multiple concurrent webhooks.
+- **Context Windows**: For large files, we had to implement intelligent "chunking" to ensure the AI only received the relevant lines of code to optimize token usage.
+- **Verification**: Ensuring that the AI's "fix" doesn't introduce *new* bugs.
+
+---
+**BugZero AI** — *Zero Bugs. Zero Leaks. Zero Effort.*
