@@ -48,6 +48,7 @@ const CONFIG = {
   GITHUB_TOKEN: process.env.GITHUB_TOKEN || '',
   GITHUB_WEBHOOK_SECRET: process.env.GITHUB_WEBHOOK_SECRET || '',
   OPENAI_API_KEY: process.env.OPENAI_API_KEY || '',
+  ANTHROPIC_API_KEY: process.env.ANTHROPIC_API_KEY || '',
   PORT: process.env.PORT || 3000,
 };
 
@@ -105,6 +106,33 @@ function redactSecrets(content, secrets) {
 }
 
 // ─── AI Fix Engine ─────────────────────────────────────────────────────────
+async function callAnthropic(prompt) {
+  if (!CONFIG.ANTHROPIC_API_KEY) {
+    // Fallback to OpenAI if Anthropic is missing
+    if (CONFIG.OPENAI_API_KEY) return callOpenAI(prompt);
+    return '// AI fix unavailable: API keys not set\n// Manual review required';
+  }
+  const res = await fetch('https://api.anthropic.com/v1/messages', {
+    method: 'POST',
+    headers: {
+      'Content-Type': 'application/json',
+      'x-api-key': CONFIG.ANTHROPIC_API_KEY,
+      'anthropic-version': '2023-06-01',
+    },
+    body: JSON.stringify({
+      model: 'claude-3-haiku-20240307',
+      max_tokens: 2000,
+      messages: [{ role: 'user', content: prompt }],
+    }),
+  });
+  if (!res.ok) {
+    const err = await res.text();
+    throw new Error(`Anthropic error: ${res.status} - ${err}`);
+  }
+  const data = await res.json();
+  return data.content[0].text;
+}
+
 async function callOpenAI(prompt) {
   if (!CONFIG.OPENAI_API_KEY) {
     return '// AI fix unavailable: OPENAI_API_KEY not set\n// Manual review required';
@@ -140,7 +168,7 @@ ${fileContent.substring(0, 3000)}
 
 Return ONLY the fixed code, no explanation, no markdown fences. Preserve all existing functionality.`;
 
-  return callOpenAI(prompt);
+  return callAnthropic(prompt);
 }
 
 // ─── ESLint analysis (simulated if eslint not installed) ───────────────────
@@ -537,6 +565,7 @@ app.get('/api/status', (_req, res) => {
       gitlab: !!CONFIG.GITLAB_TOKEN,
       webhook: !!CONFIG.GITLAB_WEBHOOK_SECRET,
       openai: !!CONFIG.OPENAI_API_KEY,
+      anthropic: !!CONFIG.ANTHROPIC_API_KEY,
     },
     version: '1.0.0',
     uptime: process.uptime(),
