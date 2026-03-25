@@ -457,50 +457,88 @@ app.use(express.static(path.join(__dirname, 'public')));
 
 // Webhook endpoint
 app.post('/webhook', async (req, res) => {
-  // GitLab uses X-Gitlab-Token for simple secret verification
-  if (CONFIG.GITLAB_WEBHOOK_SECRET) {
-    const token = req.headers['x-gitlab-token'];
-    if (token !== CONFIG.GITLAB_WEBHOOK_SECRET) {
+  const gitlabEvent = req.headers['x-gitlab-event'];
+  const githubEvent = req.headers['x-github-event'];
+
+  if (gitlabEvent) {
+    // GitLab Verification
+    if (CONFIG.GITLAB_WEBHOOK_SECRET && req.headers['x-gitlab-token'] !== CONFIG.GITLAB_WEBHOOK_SECRET) {
       log({ level: 'warn', message: '⚠️ Webhook token mismatch — rejected' });
       return res.status(401).json({ error: 'Invalid token' });
     }
-  }
 
-  const event = req.headers['x-gitlab-event'];
-  const payload = req.body;
+    log({ level: 'info', message: `📨 GitLab Webhook received: ${gitlabEvent}` });
+    res.json({ received: true });
 
-  log({ level: 'info', message: `📨 Webhook received: ${event}` });
-  res.json({ received: true });
-
-  // Handle push & PR events
-  try {
-    if (event === 'Push Hook' && payload.ref && !payload.ref.includes('bugzero/')) {
-      const ref = payload.ref.replace('refs/heads/', '');
-      await runAgent({
-        owner: payload.project.path_with_namespace.split('/')[0],
-        repo: payload.project.path_with_namespace.split('/')[1],
-        ref,
-        sha: payload.after,
-        event: 'push',
-      });
-    } else if (event === 'Merge Request Hook' && ['open', 'reopen', 'update'].includes(payload.object_attributes.action)) {
-      const mr = payload.object_attributes;
-      if (!mr.source_branch.startsWith('bugzero/')) {
+    const payload = req.body;
+    try {
+      if (gitlabEvent === 'Push Hook' && payload.ref && !payload.ref.includes('bugzero/')) {
+        const ref = payload.ref.replace('refs/heads/', '');
         await runAgent({
           owner: payload.project.path_with_namespace.split('/')[0],
           repo: payload.project.path_with_namespace.split('/')[1],
-          ref: mr.source_branch,
-          sha: mr.last_commit.id,
-          event: 'merge_request',
-          prNumber: mr.iid,
+          ref,
+          sha: payload.after,
+          event: 'push',
+          provider: 'gitlab'
         });
+      } else if (gitlabEvent === 'Merge Request Hook' && ['open', 'reopen', 'update'].includes(payload.object_attributes.action)) {
+        const mr = payload.object_attributes;
+        if (!mr.source_branch.startsWith('bugzero/')) {
+          await runAgent({
+            owner: payload.project.path_with_namespace.split('/')[0],
+            repo: payload.project.path_with_namespace.split('/')[1],
+            ref: mr.source_branch,
+            sha: mr.last_commit.id,
+            event: 'merge_request',
+            prNumber: mr.iid,
+            provider: 'gitlab'
+          });
+        }
       }
+    } catch (e) {
+      log({ level: 'error', message: `Pipeline error: ${e.message}` });
     }
-  } catch (e) {
-    log({ level: 'error', message: `Pipeline error: ${e.message}` });
+
+  } else if (githubEvent) {
+    // GitHub Verification (Simplified for Demo)
+    log({ level: 'info', message: `📨 GitHub Webhook received: ${githubEvent}` });
+    res.json({ received: true });
+
+    const payload = req.body;
+    try {
+      if (githubEvent === 'push' && payload.ref && !payload.ref.includes('bugzero/')) {
+        const ref = payload.ref.replace('refs/heads/', '');
+        await runAgent({
+          owner: payload.repository.owner.login || payload.repository.owner.name,
+          repo: payload.repository.name,
+          ref,
+          sha: payload.after,
+          event: 'push',
+          provider: 'github'
+        });
+      } else if (githubEvent === 'pull_request' && ['opened', 'reopened', 'synchronize'].includes(payload.action)) {
+        const pr = payload.pull_request;
+        if (!pr.head.ref.startsWith('bugzero/')) {
+          await runAgent({
+            owner: payload.repository.owner.login,
+            repo: payload.repository.name,
+            ref: pr.head.ref,
+            sha: pr.head.sha,
+            event: 'pull_request',
+            prNumber: pr.number,
+            provider: 'github'
+          });
+        }
+      }
+    } catch (e) {
+      log({ level: 'error', message: `Pipeline error: ${e.message}` });
+    }
+  } else {
+    log({ level: 'warn', message: '⚠️ Unknown Webhook event — rejected' });
+    return res.status(400).json({ error: 'Unknown event type' });
   }
 });
-
 // API: event log
 app.get('/api/events', (_req, res) => res.json(eventLog.slice(0, 50)));
 
