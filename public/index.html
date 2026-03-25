@@ -785,6 +785,7 @@ async function checkStatus() {
     const res = await fetch('/api/status');
     const data = await res.json();
     const cfg = data.configured || {};
+    setConfig('cfg-github',  cfg.github);
     setConfig('cfg-gitlab',  cfg.gitlab);
     setConfig('cfg-webhook', cfg.webhook);
     setConfig('cfg-openai',  cfg.openai);

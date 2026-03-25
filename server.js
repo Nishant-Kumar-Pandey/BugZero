@@ -601,7 +601,8 @@ app.get('/api/status', (_req, res) => {
   res.json({
     configured: {
       gitlab: !!CONFIG.GITLAB_TOKEN,
-      webhook: !!CONFIG.GITLAB_WEBHOOK_SECRET,
+      github: !!CONFIG.GITHUB_TOKEN,
+      webhook: !!CONFIG.GITLAB_WEBHOOK_SECRET || !!CONFIG.GITHUB_WEBHOOK_SECRET,
       openai: !!CONFIG.OPENAI_API_KEY,
       anthropic: !!CONFIG.ANTHROPIC_API_KEY,
     },
