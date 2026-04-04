@@ -48,7 +48,7 @@ const app = express()
 
 // Hardcoded secrets (BAD!)
 const OPENAI_KEY = 'sk-proj-abcdefghijklmnopqrstuvwxyz1234567890'
-const AWS_KEY    = 'AKIAIOSFODNN7EXAMPLE'
+const AWS_KEY    = 'process.env.AWS_ACCESS_KEY_ID'
 const GITHUB_PAT = 'ghp_ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefgh'
 
 // Lint issues: missing semicolons, var instead of const, unused variable

@@ -72,7 +72,7 @@ const SECRET_PATTERNS = [
   { name: 'Stripe Secret Key', regex: /sk_live_[A-Za-z0-9]{24,}/g,      envVar: 'STRIPE_SECRET_KEY' },
   { name: 'Stripe Test Key',   regex: /sk_test_[A-Za-z0-9]{24,}/g,      envVar: 'STRIPE_TEST_KEY'   },
   { name: 'Hardcoded Password',regex: /(?:password|passwd|pwd)\s*[:=]\s*["']([^"']{8,})["']/gi, envVar: 'APP_PASSWORD' },
-  { name: 'Bearer Token',      regex: /Bearer\s+[A-Za-z0-9\-._~+/]+=*/g, envVar: 'BEARER_TOKEN'    },
+  { name: 'process.env.BEARER_TOKEN',      regex: /Bearer\s+[A-Za-z0-9\-._~+/]+=*/g, envVar: 'BEARER_TOKEN'    },
   { name: 'Generic API Key',   regex: /api[_-]?key\s*[:=]\s*["']([A-Za-z0-9\-_]{16,})["']/gi, envVar: 'API_KEY' },
 ];
 
